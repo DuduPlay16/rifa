@@ -433,6 +433,18 @@ function renderGame() {
 }
 
 function addPoint(player, value) {
+      function removePoint(player, value) {
+        points[player] -= value;
+    
+        // Não deixar ficar negativo
+        if (points[player] < 0) {
+            points[player] = 0;
+        }
+    
+        renderGame();
+        renderDebts();
+        renderStats();
+    }
     points[player] += value;
 
     if (points[player] >= 10) {
