@@ -1,1 +1,538 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Rifa dos músicos</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0f16;
+    --panel:#0f1720;
+    --neon1:#00f5ff;
+    --neon2:#ff3ecf;
+    --accent:#ffd166;
+    --glass: rgba(255,255,255,0.04);
+  }
 
+  /* reset */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background: radial-gradient(circle at 10% 10%, rgba(2,6,23,1) 0%, rgba(8,11,18,1) 35%, rgba(6,7,11,1) 100%);
+    font-family: "Inter",system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+    color:#fff; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    /* CORREÇÃO: permitir rolagem quando o conteúdo crescer */
+    overflow:auto;
+  }
+
+  /* BACKGROUND LAYERS - behind content */
+  .bg-layer{
+    position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;
+  }
+
+  /* large blurred gradient */
+  .bg-glow{
+    position:absolute; width:1600px; height:1600px; left:50%; top:-30%;
+    transform:translateX(-50%);
+    background: linear-gradient(135deg, rgba(0,245,255,0.08), rgba(255,62,207,0.06));
+    filter: blur(80px); opacity:0.9;
+  }
+
+  /* floating suits (behind) */
+  .suits {
+    position:absolute; inset:0; z-index:0; pointer-events:none;
+  }
+  .suits .suit {
+    position:absolute;
+    font-size:80px; /* default large, will be varied */
+    opacity:0.12;
+    transform-origin:center;
+    filter: drop-shadow(0 0 10px rgba(0,0,0,0.6));
+    animation: floatSuit linear infinite;
+    will-change: transform, opacity;
+  }
+  /* different durations and sizes by nth-child */
+  .suits .suit:nth-child(1){ left:10%; top:20%; font-size:140px; opacity:0.10; animation-duration:18s;}
+  .suits .suit:nth-child(2){ left:80%; top:5%; font-size:120px; opacity:0.10; animation-duration:22s;}
+  .suits .suit:nth-child(3){ left:50%; top:70%; font-size:160px; opacity:0.08; animation-duration:20s;}
+  .suits .suit:nth-child(4){ left:20%; top:80%; font-size:110px; opacity:0.09; animation-duration:24s;}
+  .suits .suit:nth-child(5){ left:70%; top:45%; font-size:130px; opacity:0.08; animation-duration:16s;}
+  .suits .suit:nth-child(6){ left:40%; top:30%; font-size:150px; opacity:0.07; animation-duration:26s;}
+  .suits .suit:nth-child(7){ left:5%; top:50%; font-size:100px; opacity:0.06; animation-duration:28s;}
+  .suits .suit:nth-child(8){ left:90%; top:80%; font-size:140px; opacity:0.06; animation-duration:30s;}
+
+  @keyframes floatSuit {
+    0% { transform: translateY(0) rotate(0deg) scale(1); opacity:0.06; }
+    50% { transform: translateY(-60px) rotate(20deg) scale(1.05); opacity:0.12; }
+    100% { transform: translateY(0) rotate(0deg) scale(1); opacity:0.06; }
+  }
+
+  /* animated cards in background (large, behind content) */
+  .cards {
+    position:absolute; inset:0; z-index:0; pointer-events:none;
+  }
+  .card {
+    position:absolute;
+    width:140px; height:200px;
+    border-radius:12px;
+    background: linear-gradient(180deg,#ffffff 0%, #f0f0f0 100%);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    transform-origin:center;
+    opacity:0.07;
+    animation: floatCard linear infinite;
+  }
+  .card .suitTiny{ position:absolute; font-size:36px; top:50%; left:50%; transform:translate(-50%,-50%); opacity:0.14; }
+  .card:nth-child(1){ left:12%; top:12%; transform:rotate(-12deg); animation-duration:22s; width:180px; height:260px; }
+  .card:nth-child(2){ left:78%; top:16%; transform:rotate(18deg); animation-duration:26s; width:160px; height:230px; }
+  .card:nth-child(3){ left:40%; top:62%; transform:rotate(-6deg); animation-duration:20s; width:200px; height:280px; }
+
+  @keyframes floatCard {
+    0% { transform: translateY(0) rotate(0deg) scale(1); }
+    50% { transform: translateY(-40px) rotate(6deg) scale(1.02); opacity:0.12; }
+    100% { transform: translateY(0) rotate(0deg) scale(1); opacity:0.07; }
+  }
+
+  /* APP LAYOUT (foreground - above bg layer) */
+  .app {
+    position:relative; z-index:2; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:28px 0; /* espaço em cima/baixo para quando rolar */
+  }
+  .center {
+    width:100%; max-width:1100px; margin:24px; display:flex; gap:24px; align-items:flex-start;
+    /* CORREÇÃO: limitar altura e permitir rolagem interna */
+    max-height: calc(100vh - 120px);
+    overflow:auto;
+    padding:6px;
+  }
+
+  /* Neon panel & welcome screens */
+  .panel {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:14px;
+    padding:26px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6), 0 0 18px rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.04);
+    backdrop-filter: blur(6px) saturate(120%);
+  }
+
+  .splash {
+    width:100%; height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column;
+    text-align:center; padding:40px; z-index:2;
+  }
+  .title {
+    font-family: "Orbitron", monospace;
+    font-size:48px; letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--neon1);
+    text-shadow:
+      0 0 8px rgba(0,245,255,0.25),
+      0 0 28px rgba(0,245,255,0.16),
+      0 0 40px rgba(255,62,207,0.06);
+  }
+  .subtitle {
+    margin-top:12px; font-size:18px; color:#d6eaff; opacity:0.9;
+  }
+
+  .enterBtn {
+    margin-top:28px;
+    padding:20px 36px; font-size:22px; border-radius:999px; border:none; cursor:pointer;
+    color:#04111e; font-weight:700; background:linear-gradient(90deg,var(--neon1),var(--neon2));
+    box-shadow: 0 6px 36px rgba(0,245,255,0.12), 0 12px 60px rgba(255,62,207,0.06);
+    transition: transform .14s ease;
+  }
+  .enterBtn:hover{ transform:translateY(-4px) scale(1.02) }
+
+  /* welcome panel */
+  .welcomeCard {
+    width:100%; max-width:900px; margin:auto; text-align:center;
+    padding:36px; border-radius:14px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .welcomeCard h2 { font-size:32px; color:var(--neon2); text-shadow: 0 0 10px rgba(255,62,207,0.14); margin-bottom:8px; font-family:Orbitron; }
+  .welcomeCard p { color:#dfefff; opacity:0.9; margin-bottom:20px }
+
+  /* MAIN UI (game) */
+  .leftCol { flex: 1; min-width:320px; max-width:520px; }
+  .rightCol { flex: 1; min-width:320px; max-width:520px; }
+
+  h1.appTitle{ font-family:Orbitron; color:var(--neon1); font-size:28px; margin-bottom:6px; text-shadow:0 0 10px rgba(0,245,255,0.12); }
+  .box { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:18px; border-radius:12px; margin-bottom:18px; border:1px solid rgba(255,255,255,0.03); }
+
+  input[type="text"], input[type="number"]{
+    width:100%; padding:14px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.02); color:#fff; font-size:16px;
+  }
+
+  /* BIG BUTTONS */
+  button.btn {
+    padding:16px 22px; font-size:18px; border-radius:12px; border:none; cursor:pointer;
+    background: linear-gradient(180deg,var(--neon1),var(--neon2)); color:#021018; font-weight:700;
+    box-shadow: 0 6px 26px rgba(0,245,255,0.10);
+    margin:6px 6px 6px 0;
+    transition: transform .12s ease, box-shadow .12s;
+  }
+  button.btn:hover{ transform:translateY(-3px); box-shadow: 0 18px 60px rgba(0,245,255,0.12) }
+
+  /* small control buttons */
+  .controlRow{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+  .statsList b{ color:var(--accent) }
+
+  /* debts list style */
+  #debts p{ margin:6px 0; color:#dfefff; opacity:0.95 }
+
+  /* credits neon footer */
+  .credits {
+    position:fixed; right:20px; bottom:18px; z-index:5; font-size:13px; color: #ffdede;
+    text-shadow: 0 0 10px rgba(255,62,207,0.12);
+    background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    padding:8px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.04);
+  }
+
+  /* responsive */
+  @media (max-width:900px){
+    .center{ flex-direction:column; align-items:stretch; max-height:none; overflow:visible }
+    .suits .suit { font-size:64px !important; }
+    .card{ display:none } /* hide big cards on small screens to keep space */
+  }
+</style>
+</head>
+<body>
+
+  <!-- BACKGROUND LAYERS (suits and cards) -->
+  <div class="bg-layer" aria-hidden="true">
+    <div class="bg-glow"></div>
+
+    <!-- suits large, behind everything -->
+    <div class="suits" id="bgSuits">
+      <!-- use unicode suits; order matters for nth-child sizing -->
+      <div class="suit" style="color:rgba(0,245,255,0.06)">♠</div>
+      <div class="suit" style="color:rgba(255,62,207,0.06)">♥</div>
+      <div class="suit" style="color:rgba(255,245,120,0.06)">♦</div>
+      <div class="suit" style="color:rgba(0,245,255,0.05)">♣</div>
+      <div class="suit" style="color:rgba(255,62,207,0.05)">♠</div>
+      <div class="suit" style="color:rgba(255,245,120,0.05)">♥</div>
+      <div class="suit" style="color:rgba(0,245,255,0.04)">♦</div>
+      <div class="suit" style="color:rgba(255,62,207,0.04)">♣</div>
+    </div>
+
+    <!-- animated cards -->
+    <div class="cards">
+      <div class="card"><div class="suitTiny">♠</div></div>
+      <div class="card"><div class="suitTiny">♥</div></div>
+      <div class="card"><div class="suitTiny">♦</div></div>
+    </div>
+  </div>
+
+  <!-- APP (foreground) -->
+  <div class="app">
+
+    <!-- SPLASH / Landing page -->
+    <div id="splashScreen" class="splash">
+      <div class="panel welcomeCard" style="max-width:900px;">
+        <div style="display:flex; align-items:center; gap:18px; justify-content:center; flex-direction:column;">
+          <div style="display:flex; align-items:center; gap:12px; justify-content:center;">
+            <div style="font-size:44px; color:var(--neon1); transform:translateY(-6px)">🎵</div>
+            <div class="title">Rifa dos músicos</div>
+            <div style="font-size:44px; color:var(--neon2); transform:translateY(-6px)">🂡</div>
+          </div>
+
+          <div class="subtitle">Uma rifa simples, rápida e com visual neon.</div>
+
+          <!-- animated small cards on splash (in front of text but still part of panel) -->
+          <div style="margin-top:18px; display:flex; gap:10px; justify-content:center; align-items:center;">
+            <div style="width:62px; height:90px; border-radius:8px; background:linear-gradient(180deg,#fff,#eee); display:flex;align-items:center;justify-content:center; font-size:28px; opacity:0.95; box-shadow:0 8px 30px rgba(0,0,0,0.35)">♣</div>
+            <div style="width:62px; height:90px; border-radius:8px; background:linear-gradient(180deg,#fff,#eee); display:flex;align-items:center;justify-content:center; font-size:28px; opacity:0.95; box-shadow:0 8px 30px rgba(0,0,0,0.35)">♦</div>
+            <div style="width:62px; height:90px; border-radius:8px; background:linear-gradient(180deg,#fff,#eee); display:flex;align-items:center;justify-content:center; font-size:28px; opacity:0.95; box-shadow:0 8px 30px rgba(0,0,0,0.35)">♥</div>
+          </div>
+
+          <button class="enterBtn" id="enterBtn">Entrar</button>
+
+          <p style="margin-top:12px; font-size:13px; color:#dfefff; opacity:0.8">Feito por <b style="color:var(--neon2)">DuduPlay</b></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- WELCOME PAGE (after splash, before app) -->
+    <div id="welcomeScreen" class="splash" style="display:none;">
+      <div class="panel welcomeCard">
+        <h2>Bem-vindo à Rifa dos músicos!</h2>
+        <p>Aqui você controla pontos, dívidas e o valor das rifas. Visual neon, cartas e naipes animados para dar clima.</p>
+        <button class="btn" id="toAppBtn">Entrar no sistema</button>
+      </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="mainApp" style="display:none; width:100%;">
+      <div class="center">
+        <div class="leftCol">
+          <div class="panel box">
+            <h1 class="appTitle">Sistema de Pontos e Dívidas</h1>
+
+            <div style="margin-bottom:12px;">
+              <label for="raffleValue" style="display:block; margin-bottom:6px; color:#dfefff">Valor da rifa</label>
+              <input id="raffleValue" placeholder="Valor da rifa (ex: 10)" type="number" value="10">
+            </div>
+
+            <div style="margin-bottom:12px;">
+              <label style="display:block; margin-bottom:6px; color:#dfefff">Jogadores (2 a 4)</label>
+              <input id="p1" placeholder="Jogador 1">
+              <input id="p2" placeholder="Jogador 2" style="margin-top:8px">
+              <input id="p3" placeholder="Jogador 3 (opcional)" style="margin-top:8px">
+              <input id="p4" placeholder="Jogador 4 (opcional)" style="margin-top:8px">
+            </div>
+
+            <div class="controlRow">
+              <button class="btn" onclick="startGame()">Iniciar</button>
+              <button class="btn" onclick="resetAll()" style="background:linear-gradient(90deg,#ff8a00,#ffd166)">Reiniciar Tudo</button>
+            </div>
+          </div>
+
+          <div id="statsArea" class="panel box" style="display:none;">
+            <h3 style="margin-bottom:8px">Estatísticas</h3>
+            <p><b>Valor da rifa:</b> R$ <span id="raffleValueDisplay">0</span></p>
+            <p><b>Rifas fechadas:</b> <span id="closedRaffles">0</span></p>
+            <div id="playerWins" class="statsList"></div>
+          </div>
+        </div>
+
+        <div class="rightCol">
+          <div id="gameArea" class="panel box" style="display:none;"></div>
+
+          <div id="debtsArea" class="panel box" style="display:none;">
+            <h3>Dívidas</h3>
+            <div id="debts"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="credits">Feito por DuduPlay</div>
+
+<script>
+/* -----------------------------------------
+   LÓGICA DO JOGO — baseado no seu código
+   Mantive a lógica intacta e acrescentei stats
+----------------------------------------- */
+
+let players = [];
+let points = {};
+let debts = {};
+let wins = {};
+let raffleValue = 10;
+let rafflesClosed = 0;
+
+const splash = document.getElementById('splashScreen');
+const welcome = document.getElementById('welcomeScreen');
+const mainApp = document.getElementById('mainApp');
+
+document.getElementById('enterBtn').addEventListener('click', () => {
+  // entrar -> abre tela de boas vindas
+  splash.style.display = 'none';
+  welcome.style.display = 'flex';
+});
+
+document.getElementById('toAppBtn').addEventListener('click', () => {
+  welcome.style.display = 'none';
+  mainApp.style.display = 'block';
+  // play small animation on enter (optional)
+  document.getElementById('mainApp').animate([{opacity:0, transform:'translateY(10px)'},{opacity:1, transform:'translateY(0)'}], {duration:300, easing:'ease-out'});
+});
+
+/* position suits randomly so they feel dynamic (behind) */
+function randomizeBgSuits(){
+  const suits = document.querySelectorAll('.suits .suit');
+  suits.forEach((el, i) => {
+    const x = Math.random()*85; // percent
+    const y = Math.random()*85;
+    el.style.left = x + '%';
+    el.style.top = y + '%';
+    // random rotation and slight color variance
+    el.style.transform = `rotate(${Math.floor(Math.random()*30-15)}deg)`;
+  });
+}
+randomizeBgSuits();
+
+/* keep background suits behind everything: if content overlaps we keep z-index > bg */
+document.addEventListener('visibilitychange', randomizeBgSuits);
+
+/* START / RENDER / GAME FUNCTIONS */
+function startGame() {
+    players = [];
+
+    // pega valor da rifa do input da UI
+    raffleValue = Number(document.getElementById("raffleValue").value) || 10;
+    document.getElementById("raffleValueDisplay").innerText = raffleValue;
+
+    [p1.value, p2.value, p3.value, p4.value].forEach(n => {
+        if (n && n.trim() !== "") players.push(n.trim());
+    });
+
+    if (players.length < 2) {
+        alert("Coloque pelo menos 2 jogadores.");
+        return;
+    }
+
+    players.forEach(a => {
+        points[a] = 0;
+        wins[a] = 0;
+        debts[a] = {};
+        players.forEach(b => {
+            debts[a][b] = 0;
+        });
+    });
+
+    renderGame();
+    renderDebts();
+    renderStats();
+
+    // mostrar áreas
+    document.getElementById("gameArea").style.display = "block";
+    document.getElementById("debtsArea").style.display = "block";
+    document.getElementById("statsArea").style.display = "block";
+
+    // garanta que a área principal role até o topo para ver os controles
+    // (útil quando conteúdo anterior estava rolado)
+    const center = document.querySelector('.center');
+    if(center) center.scrollTop = 0;
+}
+
+function renderGame() {
+    let html = `<h2>Pontuar Jogadores</h2>`;
+
+    players.forEach(p => {
+        html += `
+        <div class="box" style="padding:14px;">
+            <h3 style="margin-bottom:10px">${p} — ${points[p]} pontos</h3>
+
+            <div>
+              <button class="btn" onclick="addPoint('${p}',1)">Sequência (1)</button>
+              <button class="btn" onclick="addPoint('${p}',1)">Four (1)</button>
+              <button class="btn" onclick="addPoint('${p}',1)">Batida 9 (1)</button>
+              <button class="btn" onclick="addPoint('${p}',2)">Batida 10 (2)</button>
+            </div>
+        </div>
+        `;
+    });
+
+    document.getElementById("gameArea").innerHTML = html;
+}
+
+function addPoint(player, value) {
+    points[player] += value;
+
+    if (points[player] >= 10) {
+        processWin(player);
+    }
+
+    renderGame();
+    renderDebts();
+    renderStats();
+}
+
+function processWin(winner) {
+
+    // registra vitória
+    wins[winner]++;
+    rafflesClosed++;
+
+    players.forEach(other => {
+        if (other === winner) return;
+
+        let deveParaWinner = debts[other][winner];
+        let winnerDeveParaOther = debts[winner][other];
+
+        let valor = raffleValue;
+
+        if (deveParaWinner > 0) {
+            debts[other][winner] += valor;
+        } 
+        else if (winnerDeveParaOther > 0) {
+            debts[winner][other] -= valor;
+            if (debts[winner][other] < 0) debts[winner][other] = 0;
+        } 
+        else {
+            debts[other][winner] = valor;
+        }
+    });
+
+    // zerar pontos
+    players.forEach(p => points[p] = 0);
+
+    // efeito simples de notificação (visual)
+    flashWinner(winner);
+
+    alert(winner + " ganhou a rifa!");
+}
+
+function renderDebts() {
+    let html = "";
+
+    players.forEach(a => {
+        html += `<h3 style="margin-bottom:6px">${a} deve:</h3>`;
+        players.forEach(b => {
+            if (a !== b) html += `<p>${b}: <b>R$ ${debts[a][b]}</b></p>`;
+        });
+        html += "<br>";
+    });
+
+    document.getElementById("debts").innerHTML = html;
+}
+
+function renderStats() {
+    document.getElementById("closedRaffles").innerText = rafflesClosed;
+
+    let html = "<h4>Vitórias dos jogadores:</h4>";
+    players.forEach(p => {
+        html += `<p style="margin:4px 0">${p}: <b>${wins[p]} vitória(s)</b></p>`;
+    });
+
+    document.getElementById("playerWins").innerHTML = html;
+}
+
+/* optional: reset everything */
+function resetAll(){
+  if (!confirm('Reiniciar tudo? Isso apagará jogadores, dívidas e estatísticas.')) return;
+  players = []; points = {}; debts = {}; wins = {}; raffleValue = 10; rafflesClosed = 0;
+  document.getElementById('raffleValue').value = 10;
+  document.getElementById('raffleValueDisplay').innerText = 0;
+  document.getElementById('gameArea').style.display = "none";
+  document.getElementById('debtsArea').style.display = "none";
+  document.getElementById('statsArea').style.display = "none";
+  // back to welcome
+  mainApp.style.display = 'none';
+  welcome.style.display = 'flex';
+}
+
+/* small winner flash visual (cards briefly glow) */
+function flashWinner(name){
+  const bg = document.querySelector('.bg-glow');
+  if(!bg) return;
+  bg.animate([
+    {filter:'blur(80px) brightness(1)', opacity:0.9},
+    {filter:'blur(40px) brightness(1.6)', opacity:1},
+    {filter:'blur(80px) brightness(1)', opacity:0.9}
+  ], {duration:700, easing:'ease-out'});
+}
+
+/* ensure suits sit behind content: move suits and cards z-index lower than content */
+(function ensureBgBehind(){
+  const bg = document.querySelector('.bg-layer');
+  bg.style.zIndex = 0;
+})();
+
+/* give a little entrance animation for suits/cards */
+document.querySelectorAll('.suits .suit').forEach((s, i) => {
+  s.style.opacity = 0.06 + Math.random()*0.08;
+});
+document.querySelectorAll('.card').forEach((c, i) => {
+  c.style.opacity = 0.06 + Math.random()*0.06;
+});
+
+</script>
+
+</body>
+</html>
