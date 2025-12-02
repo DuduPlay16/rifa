@@ -414,6 +414,17 @@ function renderGame() {
               <button class="btn" onclick="addPoint('${p}',1)">Batida 9 (1)</button>
               <button class="btn" onclick="addPoint('${p}',2)">Batida 10 (2)</button>
             </div>
+            <div style="margin-top:10px;">
+              <button class="btn" onclick="removePoint('${p}',1)" 
+                      style="background:linear-gradient(90deg,#ff4d4d,#ff1a1a)">
+                -1 ponto
+              </button>
+            
+              <button class="btn" onclick="removePoint('${p}',2)" 
+                      style="background:linear-gradient(90deg,#ff4d4d,#cc0000)">
+                -2 pontos
+              </button>
+            </div>
         </div>
         `;
     });
