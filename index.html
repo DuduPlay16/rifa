@@ -413,12 +413,28 @@ function renderGame() {
               <button class="btn" onclick="addPoint('${p}',1)">Four (1)</button>
               <button class="btn" onclick="addPoint('${p}',1)">Batida 9 (1)</button>
               <button class="btn" onclick="addPoint('${p}',2)">Batida 10 (2)</button>
+              <button class="btn" style="background:linear-gradient(90deg,#ff3e3e,#ff8a8a)" onclick="removerPontos('${p}',1)">Remover 1 ponto</button>
             </div>
+
         </div>
         `;
     });
 
     document.getElementById("gameArea").innerHTML = html;
+}
+
+// REMOVE PONTOS de um jogador
+function removerPontos(player, value) {
+    if (points[player] !== undefined) {
+        points[player] -= value;
+        if (points[player] < 0) points[player] = 0; // não deixa negativo
+        renderGame();   // atualiza a tela com novo valor
+        renderDebts();  // opcional, se pontos impactam dívidas
+        renderStats();  // opcional, atualizar estatísticas
+        console.log(`Removidos ${value} pontos de ${player}. Total agora: ${points[player]}`);
+    } else {
+        console.log(`Jogador ${player} não encontrado.`);
+    }
 }
 
 function addPoint(player, value) {
