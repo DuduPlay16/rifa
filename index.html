@@ -1,27 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-<!-- Firebase App -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<!-- Firestore -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
-<script>
-  // CONFIGURAÇÃO DO SEU PROJETO
-  const firebaseConfig = {
-    apiKey: "AIzaSyDtbPZOZSivOO441D9uCb-vyLkKUKAKWnQ",
-    authDomain: "rifa-a438f.firebaseapp.com",
-    projectId: "rifa-a438f",
-    storageBucket: "rifa-a438f.firebasestorage.app",
-    messagingSenderId: "42457719190",
-    appId: "1:42457719190:web:02d3d9cc313df507fd7db7"
-  };
-
-  // INICIALIZA FIREBASE + FIRESTORE
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-</script>
-
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Rifa dos músicos</title>
@@ -259,7 +238,7 @@
             <div style="font-size:44px; color:var(--neon2); transform:translateY(-6px)">🂡</div>
           </div>
 
-          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ningue!</div>
+          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ninguem!</div>
 
           <!-- animated small cards on splash (in front of text but still part of panel) -->
           <div style="margin-top:18px; display:flex; gap:10px; justify-content:center; align-items:center;">
@@ -281,27 +260,6 @@
         <h2>Bem-vindo à Rifa dos músicos!</h2>
         <p>Aqui você controla pontos, dívidas e o valor das rifas. Visual neon, cartas e naipes animados para dar clima.</p>
         <button class="btn" id="toAppBtn">Entrar no sistema</button>
-      </div>
-    </div>
-
-    <!-- ROOM SCREEN -->
-    <div id="roomScreen" class="splash" style="display:none;">
-      <div class="panel welcomeCard">
-        <h2>Salas</h2>
-    
-        <h3 style="margin-top:10px;">Criar nova sala</h3>
-        <input id="roomNameCreate" placeholder="Nome da sala" style="margin-top:10px;">
-        <input id="roomPassCreate" placeholder="Senha" type="password" style="margin-top:10px;">
-        <button class="btn" onclick="createRoom()">Criar Sala</button>
-    
-        <br><br>
-    
-        <h3>Entrar em sala existente</h3>
-        <select id="roomSelect" style="margin-top:10px; width:100%; padding:10px;"></select>
-        <input id="roomPassEnter" placeholder="Senha" type="password" style="margin-top:10px;">
-        <button class="btn" onclick="enterRoom()">Entrar</button>
-    
-        <button class="btn" style="margin-top:15px; background:#8b0000" onclick="deleteRoom()">Excluir Sala</button>
       </div>
     </div>
 
@@ -391,20 +349,20 @@ let raffleValue = 10;
 let rafflesClosed = 0;
 let currentRoom = null;
 
-const splashScreen = document.getElementById('splashScreen');
-const welcomeScreen = document.getElementById('welcomeScreen');
-const roomScreen = document.getElementById('roomScreen');
+const splash = document.getElementById('splashScreen');
+const welcome = document.getElementById('welcomeScreen');
 const mainApp = document.getElementById('mainApp');
 
 document.getElementById('enterBtn').addEventListener('click', () => {
+  // entrar -> abre tela de boas vindas
   splash.style.display = 'none';
-  welcomeScreen.style.display = 'flex';
+  welcome.style.display = 'flex';
 });
 
 document.getElementById('toAppBtn').addEventListener('click', () => {
-  welcomeScreen.style.display = 'none';
+  welcome.style.display = 'none';
   roomScreen.style.display = 'flex';
-  loadRoomList();
+  loadRooms();
 });
 
 /* position suits randomly so they feel dynamic (behind) */
@@ -733,130 +691,6 @@ function deleteRoom() {
 
   loadRooms();
 }
-
-let currentRoom = null;
-
-// Carregar a lista de salas
-function loadRoomList() {
-  db.collection("rooms").get().then(snapshot => {
-    let select = document.getElementById("roomSelect");
-    select.innerHTML = "";
-
-    snapshot.forEach(doc => {
-      let opt = document.createElement("option");
-      opt.value = doc.id;
-      opt.textContent = doc.id;
-      select.appendChild(opt);
-    });
-  });
-}
-
-// Criar sala nova
-function createRoom() {
-  let name = roomNameCreate.value.trim();
-  let pass = roomPassCreate.value.trim();
-
-  if (!name || !pass) return alert("Preencha nome e senha!");
-
-  db.collection("rooms").doc(name).set({
-    password: pass,
-    state: null
-  }).then(() => {
-    alert("Sala criada!");
-    loadRoomList();
-  });
-}
-
-// Entrar na sala
-function enterRoom() {
-  let name = roomSelect.value;
-  let pass = roomPassEnter.value.trim();
-  if (!name || !pass) return alert("Selecione e digite a senha!");
-
-  db.collection("rooms").doc(name).get().then(doc => {
-    if (!doc.exists) return alert("Sala não encontrada!");
-
-    let data = doc.data();
-    if (data.password !== pass) return alert("Senha incorreta!");
-
-    currentRoom = name;
-
-    if (data.state) {
-      loadGameState(data.state);
-    }
-
-    roomScreen.style.display = "none";
-    mainApp.style.display = "block";
-  });
-}
-
-// Excluir sala
-function deleteRoom() {
-  let name = roomSelect.value;
-  if (!name) return;
-
-  if (!confirm("Excluir sala '" + name + "'?")) return;
-
-  db.collection("rooms").doc(name).delete().then(() => {
-    alert("Sala excluída");
-    loadRoomList();
-  });
-}
-
-// SALVAR ESTADO DA SALA
-function saveGameState() {
-  if (!currentRoom) return;
-
-  let state = {
-    players,
-    points,
-    debts,
-    wins,
-    raffleValue,
-    rafflesClosed
-  };
-
-  db.collection("rooms").doc(currentRoom).update({ state });
-}
-
-// CARREGAR ESTADO
-function loadGameState(state) {
-  players = state.players;
-  points = state.points;
-  debts = state.debts;
-  wins = state.wins;
-  raffleValue = state.raffleValue;
-  rafflesClosed = state.rafflesClosed;
-
-  document.getElementById("raffleValueDisplay").innerText = raffleValue;
-
-  renderGame();
-  renderDebts();
-  renderStats();
-
-  document.getElementById("gameArea").style.display = "block";
-  document.getElementById("debtsArea").style.display = "block";
-  document.getElementById("statsArea").style.display = "block";
-}
-
-// Toda vez que o jogo muda → salvar no Firebase
-let oldAddPoint = addPoint;
-addPoint = function(player, value) {
-  oldAddPoint(player, value);
-  saveGameState();
-};
-
-let oldProcessWin = processWin;
-processWin = function(winner) {
-  oldProcessWin(winner);
-  saveGameState();
-};
-
-let oldRemover = removerPontos;
-removerPontos = function(p, v) {
-  oldRemover(p, v);
-  saveGameState();
-};
 
 </script>
 
