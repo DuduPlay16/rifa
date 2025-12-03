@@ -263,6 +263,28 @@
       </div>
     </div>
 
+    <!-- SALA SYSTEM -->
+    <div id="roomScreen" class="splash" style="display:none;">
+      <div class="panel welcomeCard" style="max-width:700px;">
+    
+        <h2>Sistema de Salas</h2>
+    
+        <h3 style="margin-top:18px;">Criar Sala</h3>
+        <input id="newRoomName" placeholder="Nome da sala" style="margin-top:8px;">
+        <input id="newRoomPass" placeholder="Senha da sala" type="password" style="margin-top:8px;">
+        <button class="btn" style="margin-top:12px;" onclick="createRoom()">Criar Sala</button>
+    
+        <hr style="margin:25px 0; opacity:0.2;">
+    
+        <h3>Entrar em Sala</h3>
+        <select id="roomList" style="margin-top:8px; width:100%; padding:12px;">
+        </select>
+        <input id="enterRoomPass" placeholder="Senha da sala" type="password" style="margin-top:8px;">
+        <button class="btn" style="margin-top:12px;" onclick="enterRoom()">Entrar</button>
+    
+      </div>
+    </div>
+    
     <!-- MAIN APP -->
     <div id="mainApp" style="display:none; width:100%;">
       <div class="center">
@@ -324,6 +346,7 @@ let debts = {};
 let wins = {};
 let raffleValue = 10;
 let rafflesClosed = 0;
+let currentRoom = null;
 
 const splash = document.getElementById('splashScreen');
 const welcome = document.getElementById('welcomeScreen');
@@ -337,9 +360,8 @@ document.getElementById('enterBtn').addEventListener('click', () => {
 
 document.getElementById('toAppBtn').addEventListener('click', () => {
   welcome.style.display = 'none';
-  mainApp.style.display = 'block';
-  // play small animation on enter (optional)
-  document.getElementById('mainApp').animate([{opacity:0, transform:'translateY(10px)'},{opacity:1, transform:'translateY(0)'}], {duration:300, easing:'ease-out'});
+  roomScreen.style.display = 'flex';
+  loadRooms();
 });
 
 /* position suits randomly so they feel dynamic (behind) */
@@ -432,6 +454,7 @@ function removerPontos(player, value) {
         renderGame();   // atualiza a tela com novo valor
         renderDebts();  // opcional, se pontos impactam dívidas
         renderStats();  // opcional, atualizar estatísticas
+        saveRoomState();
         console.log(`Removidos ${value} pontos de ${player}. Total agora: ${points[player]}`);
     } else {
         console.log(`Jogador ${player} não encontrado.`);
@@ -448,6 +471,7 @@ function addPoint(player, value) {
     renderGame();
     renderDebts();
     renderStats();
+    saveRoomState();
 }
 
 function processWin(winner) {
@@ -483,6 +507,8 @@ function processWin(winner) {
     flashWinner(winner);
 
     alert(winner + " ganhou a rifa!");
+
+    saveRoomState();
 }
 
 function renderDebts() {
@@ -548,6 +574,101 @@ document.querySelectorAll('.suits .suit').forEach((s, i) => {
 document.querySelectorAll('.card').forEach((c, i) => {
   c.style.opacity = 0.06 + Math.random()*0.06;
 });
+
+/* -------------------- SISTEMA DE SALAS ---------------------- */
+function loadRooms() {
+  let rooms = JSON.parse(localStorage.getItem("rooms") || "[]");
+  let sel = document.getElementById("roomList");
+  sel.innerHTML = "";
+
+  if (rooms.length === 0) {
+    sel.innerHTML = "<option>Nenhuma sala criada</option>";
+    return;
+  }
+
+  rooms.forEach(r => {
+    sel.innerHTML += `<option value="${r.name}">${r.name}</option>`;
+  });
+}
+
+function createRoom() {
+  let name = newRoomName.value.trim();
+  let pass = newRoomPass.value.trim();
+
+  if (!name || !pass) {
+    alert("Digite nome e senha da sala.");
+    return;
+  }
+
+  let rooms = JSON.parse(localStorage.getItem("rooms") || "[]");
+
+  if (rooms.find(r => r.name === name)) {
+    alert("Já existe uma sala com este nome.");
+    return;
+  }
+
+  rooms.push({ name, pass });
+  localStorage.setItem("rooms", JSON.stringify(rooms));
+
+  alert("Sala criada! Agora entre nela.");
+  loadRooms();
+}
+
+function enterRoom() {
+  let name = roomList.value;
+  let pass = enterRoomPass.value.trim();
+
+  let rooms = JSON.parse(localStorage.getItem("rooms") || "[]");
+  let room = rooms.find(r => r.name === name);
+
+  if (!room) return alert("Sala não encontrada.");
+
+  if (room.pass !== pass) return alert("Senha incorreta!");
+
+  currentRoom = name;
+
+  loadRoomState();
+
+  roomScreen.style.display = "none";
+  mainApp.style.display = "block";
+}
+
+function saveRoomState() {
+  if (!currentRoom) return;
+
+  let data = {
+    players,
+    points,
+    debts,
+    wins,
+    raffleValue,
+    rafflesClosed
+  };
+
+  localStorage.setItem("sala_" + currentRoom, JSON.stringify(data));
+}
+
+function loadRoomState() {
+  let raw = localStorage.getItem("sala_" + currentRoom);
+  if (!raw) return;
+
+  let data = JSON.parse(raw);
+
+  players = data.players;
+  points = data.points;
+  debts = data.debts;
+  wins = data.wins;
+  raffleValue = data.raffleValue;
+  rafflesClosed = data.rafflesClosed;
+
+  renderGame();
+  renderDebts();
+  renderStats();
+
+  gameArea.style.display = "block";
+  debtsArea.style.display = "block";
+  statsArea.style.display = "block";
+}
 
 </script>
 
