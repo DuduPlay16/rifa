@@ -391,8 +391,9 @@ let raffleValue = 10;
 let rafflesClosed = 0;
 let currentRoom = null;
 
-const splash = document.getElementById('splashScreen');
-const welcome = document.getElementById('');
+const splashScreen = document.getElementById('splashScreen');
+const welcomeScreen = document.getElementById('welcomeScreen');
+const roomScreen = document.getElementById('roomScreen');
 const mainApp = document.getElementById('mainApp');
 
 document.getElementById('enterBtn').addEventListener('click', () => {
@@ -401,7 +402,7 @@ document.getElementById('enterBtn').addEventListener('click', () => {
 });
 
 document.getElementById('toAppBtn').addEventListener('click', () => {
-  welcome.style.display = 'none';
+  welcomeScreen.style.display = 'none';
   roomScreen.style.display = 'flex';
   loadRoomList();
 });
