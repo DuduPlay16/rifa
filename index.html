@@ -1,6 +1,24 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDtbPZOZSivOO441D9uCb-vyLkKUKAKWnQ",
+  authDomain: "rifa-a438f.firebaseapp.com",
+  projectId: "rifa-a438f",
+  storageBucket: "rifa-a438f.firebasestorage.app",
+  messagingSenderId: "42457719190",
+  appId: "1:42457719190:web:02d3d9cc313df507fd7db7"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+</script>
+
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Rifa dos músicos</title>
@@ -238,7 +256,7 @@
             <div style="font-size:44px; color:var(--neon2); transform:translateY(-6px)">🂡</div>
           </div>
 
-          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ninguem!</div>
+          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ningue!</div>
 
           <!-- animated small cards on splash (in front of text but still part of panel) -->
           <div style="margin-top:18px; display:flex; gap:10px; justify-content:center; align-items:center;">
@@ -272,7 +290,7 @@
         <h3 style="margin-top:18px;">Criar Sala</h3>
         <input id="newRoomName" placeholder="Nome da sala" style="margin-top:8px;">
         <input id="newRoomPass" placeholder="Senha da sala" type="password" style="margin-top:8px;">
-        <button class="btn" style="margin-top:12px;" onclick="createRoom()">Criar Sala</button>
+        <button class="btn" style="margin-top:12px;" onclick="()">Criar Sala</button>
     
         <hr style="margin:25px 0; opacity:0.2;">
     
@@ -447,6 +465,23 @@ function renderGame() {
     document.getElementById("gameArea").innerHTML = html;
 }
 
+function loadRoomStateLive(state) {
+  players = state.players;
+  points = state.points;
+  debts = state.debts;
+  wins = state.wins;
+  raffleValue = state.raffleValue;
+  rafflesClosed = state.rafflesClosed;
+
+  renderGame();
+  renderDebts();
+  renderStats();
+
+  gameArea.style.display = "block";
+  debtsArea.style.display = "block";
+  statsArea.style.display = "block";
+}
+
 // REMOVE PONTOS de um jogador
 function removerPontos(player, value) {
     if (points[player] !== undefined) {
@@ -577,58 +612,59 @@ document.querySelectorAll('.card').forEach((c, i) => {
 });
 
 /* -------------------- SISTEMA DE SALAS ---------------------- */
-function loadRooms() {
-  let rooms = JSON.parse(localStorage.getItem("rooms") || "[]");
+async function loadRooms() {
   let sel = document.getElementById("roomList");
   sel.innerHTML = "";
 
-  if (rooms.length === 0) {
+  let snap = await db.collection("rooms").get();
+
+  if (snap.empty) {
     sel.innerHTML = "<option>Nenhuma sala criada</option>";
     return;
   }
 
-  rooms.forEach(r => {
-    sel.innerHTML += `<option value="${r.name}">${r.name}</option>`;
+  snap.forEach(doc => {
+    sel.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
   });
 }
 
-function createRoom() {
+async function createRoom() {
   let name = newRoomName.value.trim();
   let pass = newRoomPass.value.trim();
 
-  if (!name || !pass) {
-    alert("Digite nome e senha da sala.");
-    return;
-  }
+  if (!name || !pass) return alert("Digite nome e senha.");
 
-  let rooms = JSON.parse(localStorage.getItem("rooms") || "[]");
+  await db.collection("rooms").doc(name).set({
+    pass,
+    state: null
+  });
 
-  if (rooms.find(r => r.name === name)) {
-    alert("Já existe uma sala com este nome.");
-    return;
-  }
-
-  rooms.push({ name, pass });
-  localStorage.setItem("rooms", JSON.stringify(rooms));
-
-  alert("Sala criada! Agora entre nela.");
+  alert("Sala criada!");
   loadRooms();
 }
 
-function enterRoom() {
+let unsubscribe = null;
+
+async function enterRoom() {
   let name = roomList.value;
   let pass = enterRoomPass.value.trim();
 
-  let rooms = JSON.parse(localStorage.getItem("rooms") || "[]");
-  let room = rooms.find(r => r.name === name);
+  let ref = db.collection("rooms").doc(name);
+  let docSnap = await ref.get();
 
-  if (!room) return alert("Sala não encontrada.");
+  if (!docSnap.exists) return alert("Sala não encontrada!");
 
-  if (room.pass !== pass) return alert("Senha incorreta!");
+  if (docSnap.data().pass !== pass) return alert("Senha incorreta!");
 
   currentRoom = name;
 
-  loadRoomState();
+  // CRIA LISTENER EM TEMPO REAL
+  unsubscribe = ref.onSnapshot(doc => {
+    let data = doc.data();
+    if (!data.state) return; // sala vazia
+
+    loadRoomStateLive(data.state);  // atualização instantânea
+  });
 
   roomScreen.style.display = "none";
   mainApp.style.display = "block";
@@ -646,7 +682,9 @@ function saveRoomState() {
     rafflesClosed
   };
 
-  localStorage.setItem("sala_" + currentRoom, JSON.stringify(data));
+  db.collection("rooms").doc(currentRoom).update({
+    state: data
+  });
 }
 
 function loadRoomState() {
