@@ -256,7 +256,7 @@ const db = firebase.firestore();
             <div style="font-size:44px; color:var(--neon2); transform:translateY(-6px)">🂡</div>
           </div>
 
-          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ningue!</div>
+          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ninguem!</div>
 
           <!-- animated small cards on splash (in front of text but still part of panel) -->
           <div style="margin-top:18px; display:flex; gap:10px; justify-content:center; align-items:center;">
@@ -370,6 +370,7 @@ let currentRoom = null;
 const splash = document.getElementById('splashScreen');
 const welcome = document.getElementById('welcomeScreen');
 const mainApp = document.getElementById('mainApp');
+const roomScreen = document.getElementById('roomScreen');
 
 document.getElementById('enterBtn').addEventListener('click', () => {
   // entrar -> abre tela de boas vindas
