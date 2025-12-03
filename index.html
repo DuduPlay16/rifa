@@ -518,32 +518,39 @@ async function endRound(player, reason = 'batida'){
 
 /* processWin: quando jogador >=10 pontos -> aplicar dívidas e zerar pontos */
 async function processWin(winner){
+  // marca vitória
   wins[winner] = (wins[winner] || 0) + 1;
   rafflesClosed++;
+
   ensureHistory(currentPartida);
   history[currentPartida].push(`${winner} venceu por acumular 10 ou mais pontos!`);
 
-  // aplicar dívidas entre players (regra original)
+  // aplicar dívidas entre players
   players.forEach(other => {
     if(other === winner) return;
-    let deveParaWinner = (debts[other] && debts[other][winner]) ? debts[other][winner] : 0;
-    let winnerDeveParaOther = (debts[winner] && debts[winner][other]) ? debts[winner][other] : 0;
-    let valor = raffleValue;
 
-    if(deveParaWinner > 0){
-      // outros já deviam pro winner -> soma
-      debts[other][winner] = (debts[other][winner] || 0) + valor;
-    } else if(winnerDeveParaOther > 0){
-      // winner devia para other -> diminui
-      debts[winner][other] = Math.max(0, (debts[winner][other] || 0) - valor);
+    if(!debts[other]) debts[other] = {};
+    if(!debts[winner]) debts[winner] = {};
+
+    const valor = raffleValue;
+
+    const deveParaWinner = debts[other][winner] || 0;
+    const winnerDeveParaOther = debts[winner][other] || 0;
+
+    if(winnerDeveParaOther > 0){
+      // primeiro compensar dívidas do vencedor
+      const compensa = Math.min(valor, winnerDeveParaOther);
+      debts[winner][other] -= compensa;
+      const restante = valor - compensa;
+      if(restante > 0) debts[other][winner] = (debts[other][winner] || 0) + restante;
     } else {
-      // criar débito padrão
+      // cria dívida normal
       debts[other][winner] = (debts[other][winner] || 0) + valor;
     }
   });
 
-  // reset de pontos (após vitória)
-  players.forEach(p => points[p] = 0);
+  // reset pontos do vencedor apenas
+  points[winner] = 0;
 
   // iniciar nova partida no histórico
   currentPartida++;
