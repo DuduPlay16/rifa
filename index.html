@@ -248,6 +248,7 @@
           </div>
 
           <button class="enterBtn" id="enterBtn">Entrar</button>
+          <button class="btn danger" style="margin-top:12px; background:#8b0000;" onclick="deleteRoom()">Excluir Sala</button>
 
           <p style="margin-top:12px; font-size:13px; color:#dfefff; opacity:0.8">Feito por <b style="color:var(--neon2)">DuduPlay</b></p>
         </div>
@@ -668,6 +669,27 @@ function loadRoomState() {
   gameArea.style.display = "block";
   debtsArea.style.display = "block";
   statsArea.style.display = "block";
+}
+
+function deleteRoom() {
+  let name = roomList.value;
+  if (!name) return alert("Nenhuma sala selecionada.");
+
+  let confirmDelete = confirm("Deseja realmente excluir a sala \"" + name + "\"?");
+  if (!confirmDelete) return;
+
+  let rooms = JSON.parse(localStorage.getItem("rooms") || "[]");
+
+  // remove da lista principal
+  rooms = rooms.filter(r => r.name !== name);
+  localStorage.setItem("rooms", JSON.stringify(rooms));
+
+  // remove estado salvo
+  localStorage.removeItem("sala_" + name);
+
+  alert("Sala excluída com sucesso!");
+
+  loadRooms();
 }
 
 </script>
