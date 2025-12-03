@@ -255,7 +255,7 @@
             <div style="font-size:44px; color:var(--neon2); transform:translateY(-6px)">🂡</div>
           </div>
 
-          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ningue!</div>
+          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ninguem!</div>
 
           <!-- animated small cards on splash (in front of text but still part of panel) -->
           <div style="margin-top:18px; display:flex; gap:10px; justify-content:center; align-items:center;">
@@ -611,7 +611,9 @@ document.querySelectorAll('.card').forEach((c, i) => {
   c.style.opacity = 0.06 + Math.random()*0.06;
 });
 
-/* -------------------- SISTEMA DE SALAS ---------------------- */
+/* -------------------- SISTEMA DE SALAS — FIRESTORE ---------------------- */
+
+// Carregar lista de salas
 async function loadRooms() {
   let sel = document.getElementById("roomList");
   sel.innerHTML = "";
@@ -628,6 +630,7 @@ async function loadRooms() {
   });
 }
 
+// Criar nova sala
 async function createRoom() {
   let name = newRoomName.value.trim();
   let pass = newRoomPass.value.trim();
@@ -645,6 +648,7 @@ async function createRoom() {
 
 let unsubscribe = null;
 
+// Entrar na sala
 async function enterRoom() {
   let name = roomList.value;
   let pass = enterRoomPass.value.trim();
@@ -658,18 +662,19 @@ async function enterRoom() {
 
   currentRoom = name;
 
-  // CRIA LISTENER EM TEMPO REAL
+  // Listener em tempo real
   unsubscribe = ref.onSnapshot(doc => {
     let data = doc.data();
-    if (!data.state) return; // sala vazia
+    if (!data.state) return; // nada salvo ainda
 
-    loadRoomStateLive(data.state);  // atualização instantânea
+    loadRoomStateLive(data.state);
   });
 
   roomScreen.style.display = "none";
   mainApp.style.display = "block";
 }
 
+// SALVAR ESTADO NO FIRESTORE
 function saveRoomState() {
   if (!currentRoom) return;
 
@@ -687,46 +692,36 @@ function saveRoomState() {
   });
 }
 
-function loadRoomState() {
-  let raw = localStorage.getItem("sala_" + currentRoom);
-  if (!raw) return;
+// CARREGAR ESTADO EM TEMPO REAL
+function loadRoomStateLive(state) {
+  players = state.players;
+  points = state.points;
+  debts = state.debts;
+  wins = state.wins;
+  raffleValue = state.raffleValue;
+  rafflesClosed = state.rafflesClosed;
 
-  let data = JSON.parse(raw);
-
-  players = data.players;
-  points = data.points;
-  debts = data.debts;
-  wins = data.wins;
-  raffleValue = data.raffleValue;
-  rafflesClosed = data.rafflesClosed;
+  document.getElementById("raffleValueDisplay").innerText = raffleValue;
 
   renderGame();
   renderDebts();
   renderStats();
 
-  gameArea.style.display = "block";
-  debtsArea.style.display = "block";
-  statsArea.style.display = "block";
+  document.getElementById("gameArea").style.display = "block";
+  document.getElementById("debtsArea").style.display = "block";
+  document.getElementById("statsArea").style.display = "block";
 }
 
-function deleteRoom() {
+// EXCLUIR SALA (FIRESTORE)
+async function deleteRoom() {
   let name = roomList.value;
   if (!name) return alert("Nenhuma sala selecionada.");
 
-  let confirmDelete = confirm("Deseja realmente excluir a sala \"" + name + "\"?");
-  if (!confirmDelete) return;
+  if (!confirm(`Excluir a sala "${name}"?`)) return;
 
-  let rooms = JSON.parse(localStorage.getItem("rooms") || "[]");
+  await db.collection("rooms").doc(name).delete();
 
-  // remove da lista principal
-  rooms = rooms.filter(r => r.name !== name);
-  localStorage.setItem("rooms", JSON.stringify(rooms));
-
-  // remove estado salvo
-  localStorage.removeItem("sala_" + name);
-
-  alert("Sala excluída com sucesso!");
-
+  alert("Sala excluída!");
   loadRooms();
 }
 
