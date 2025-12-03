@@ -14,6 +14,7 @@
     appId: "1:42457719190:web:02d3d9cc313df507fd7db7"
   };
 
+  // inicializa firebase
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 </script>
@@ -191,11 +192,31 @@
 
   <div class="credits">Feito por DuduPlay</div>
 
+<!-- MODAL SISTEMA -->
+<div id="modalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center;">
+  <div id="modalBox" style="background:#0f1720; padding:24px; border-radius:14px; width:90%; max-width:360px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 0 18px rgba(0,0,0,0.6); text-align:center;">
+      <h3 id="modalTitle" style="margin-bottom:12px; color:#00f5ff; font-family:Orbitron"></h3>
+      <p id="modalMessage" style="margin-bottom:22px; color:#dfefff;"></p>
+      <div id="modalInputContainer" style="display:none; margin-bottom:18px;">
+         <input id="modalInput" type="password" placeholder="Digite aqui..." style="width:100%; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.04); color:white;">
+      </div>
+      <div style="display:flex; justify-content:center; gap:10px;">
+        <button id="modalCancel" style="padding:10px 18px; margin-right:10px; border:none; border-radius:8px; background:#444; color:white; cursor:pointer;">Cancelar</button>
+        <button id="modalOk" style="padding:10px 18px; border:none; border-radius:8px; background:linear-gradient(90deg,#00f5ff,#ff3ecf); color:#021018; cursor:pointer; font-weight:700;">OK</button>
+      </div>
+  </div>
+</div>
+
 <script>
+/* -----------------------------------------
+   LÓGICA DO JOGO — CORRIGIDO E COMPLETO
+----------------------------------------- */
+
 let players = [];
-let sequenceUsed = false;
-let fourUsed = false;
-let history = {}; let currentPartida = 1;
+let sequenceUsed = false;   // se já houve sequência nesta rodada
+let fourUsed = false;       // se já houve four nesta rodada
+let history = {};           // {1: [..], 2: [..], ... 10: [...]}
+let currentPartida = 1;     // 1..10 (vai resetar para 1 após 10)
 let points = {};
 let debts = {};
 let wins = {};
@@ -221,7 +242,7 @@ document.getElementById('toAppBtn').addEventListener('click', () => {
 
 function randomizeBgSuits(){
   const suits = document.querySelectorAll('.suits .suit');
-  suits.forEach((el, i) => {
+  suits.forEach((el) => {
     const x = Math.random()*85;
     const y = Math.random()*85;
     el.style.left = x + '%';
@@ -230,7 +251,6 @@ function randomizeBgSuits(){
   });
 }
 randomizeBgSuits();
-
 document.addEventListener('visibilitychange', randomizeBgSuits);
 
 /* ---- RENDER / UI ---- */
@@ -278,32 +298,36 @@ function renderStats() {
 }
 
 function renderHistory(){
+  // show Partida 1..10 in order; show empty partidas too (optional) but we'll show only those with entries
   let html = '';
   for(let p = 1; p <= 10; p++){
-    if(history[p] && history[p].length){
-      html += `<h4>Partida ${p}</h4>`;
-      html += history[p].map(h => `<p style="margin:4px 0">${h}</p>`).join('');
-      html += '<hr style="opacity:0.2; margin:8px 0">';
+    const arr = history[p] || [];
+    html += `<h4 style="margin-bottom:6px">Partida ${p}${p===currentPartida ? ' (atual)' : ''}</h4>`;
+    if(arr.length === 0){
+      html += `<p style="margin:4px 0; opacity:0.7">-- sem ações --</p>`;
+    } else {
+      html += arr.map(h => `<p style="margin:4px 0">${h}</p>`).join('');
     }
+    html += '<hr style="opacity:0.12; margin:8px 0">';
   }
   document.getElementById('history').innerHTML = html;
 }
 
 function clearHistory(){
-  if(!confirm('Limpar histórico desta sala?')) return;
-  history = {1: []}; currentPartida = 1;
+  if(!confirmSync('Limpar histórico desta sala?')) return;
+  history = {};
+  currentPartida = 1;
   saveRoomState();
   renderHistory();
 }
 
 /* ---- GAME LOGIC ---- */
 function startGame(){
-    // reset round flags
+    // reset round flags and data
     sequenceUsed = false;
     fourUsed = false;
-
-    // reset previous data
-    history = [];
+    history = {};
+    currentPartida = 1;
     players = [];
     points = {};
     debts = {};
@@ -313,12 +337,12 @@ function startGame(){
     raffleValue = Number(document.getElementById("raffleValue").value) || 10;
     document.getElementById("raffleValueDisplay").innerText = raffleValue;
 
-    [p1.value, p2.value, p3.value, p4.value].forEach(n => {
-        if (n && n.trim() !== "") players.push(n.trim());
-    });
+    // read player inputs
+    const pInputs = ['p1','p2','p3','p4'].map(id => (document.getElementById(id) && document.getElementById(id).value) || '');
+    pInputs.forEach(n => { if(n && n.trim() !== '') players.push(n.trim()); });
 
     if (players.length < 2) {
-        alert("Coloque pelo menos 2 jogadores.");
+        alertSync("Coloque pelo menos 2 jogadores.");
         return;
     }
 
@@ -328,6 +352,9 @@ function startGame(){
         debts[a] = {};
         players.forEach(b => debts[a][b] = 0);
     });
+
+    // ensure history structure
+    for(let i=1;i<=10;i++) if(!history[i]) history[i]=[];
 
     renderGame(); renderDebts(); renderStats(); renderHistory();
 
@@ -351,152 +378,211 @@ function removerPontos(player, value) {
 function handleAction(player, action){
   if(!players.includes(player)) return;
 
+  // ensure current partida history exists
+  if(!history[currentPartida]) history[currentPartida] = [];
+
   if(action === 'seq'){
-    if(sequenceUsed) return alert('Sequência já foi feita nesta rodada!');
+    if(sequenceUsed) return alertSync('Sequência já foi feita nesta rodada!');
     sequenceUsed = true;
     history[currentPartida].push(`${player} fez SEQUÊNCIA`);
     points[player] = (points[player] || 0) + 1;
   }
   else if(action === 'four'){
-    if(fourUsed) return alert('Four já foi feito nesta rodada!');
+    if(fourUsed) return alertSync('Four já foi feito nesta rodada!');
     fourUsed = true;
-    history.push(`${player} fez FOUR`);
+    history[currentPartida].push(`${player} fez FOUR`);
     points[player] = (points[player] || 0) + 1;
   }
   else if(action === 'bat9'){
-    history.push(`${player} bateu com 9`);
+    history[currentPartida].push(`${player} bateu com 9`);
     points[player] = (points[player] || 0) + 1;
-    // batida NÃO fecha rifa
-    endRound(player);
-    return;
-}
+    // Batida encerra a rodada, but DOES NOT apply debts/declare winner (unless person reached 10)
+    if(points[player] >= 10){
+      // if batida pushed them to 10+, apply win (the rule: only 10 points triggers debts)
+      history[currentPartida].push(`${player} atingiu 10 pontos pela batida`);
+      processWin(player);
+      advancePartidaAfterRound();
+      return;
+    } else {
+      endRoundWithoutWin(player, 'batida');
+      return;
+    }
   }
   else if(action === 'bat10'){
-    history.push(`${player} bateu com 10`);
+    history[currentPartida].push(`${player} bateu com 10`);
     points[player] = (points[player] || 0) + 2;
-    // batida NÃO fecha rifa
-    endRound(player);
-    return;
-}
+    if(points[player] >= 10){
+      history[currentPartida].push(`${player} atingiu 10 pontos pela batida`);
+      processWin(player);
+      advancePartidaAfterRound();
+      return;
+    } else {
+      endRoundWithoutWin(player, 'batida');
+      return;
+    }
   }
 
-  // se depois da ação atingiu 10 -> vence rodada
+  // se depois da ação atingiu 10 -> vence a rifa
   if(points[player] >= 10){
-    history.push(`${player} venceu por acumular 10 pontos`);
+    history[currentPartida].push(`${player} venceu por acumular 10 pontos`);
     processWin(player);
+    advancePartidaAfterRound();
     return;
   }
 
   renderGame(); renderDebts(); renderStats(); renderHistory(); saveRoomState();
 }
 
-function endRound(player){
-  // batida NÃO fecha rifa — apenas encerra a rodada
-  history.push(`${player} encerrou a rodada (batida)`);
-
-  // NÃO aplicar dívidas aqui
-  // NÃO contar vitória aqui
-
-  // iniciar nova rodada
+// End round that is NOT a win (batida 9/10 that didn't reach 10)
+function endRoundWithoutWin(player, reason){
+  history[currentPartida].push(`${player} encerrou a rodada (${reason})`);
+  // reset sequence/four for next round
   sequenceUsed = false;
   fourUsed = false;
-
-  // zerar pontos da rodada
+  // zero points for new round (per your request — round-bound points)
   players.forEach(p => points[p] = 0);
-
-  history.push('--- nova rodada iniciada ---');
-
-  renderGame(); renderDebts(); renderStats(); renderHistory();
-  saveRoomState();
-}
+  // move partida counter
+  advancePartidaAfterRound();
+  renderGame(); renderDebts(); renderStats(); renderHistory(); saveRoomState();
 }
 
-function processWin(winner){
-    // Apenas aqui deve aplicar dívidas e vitória
+// when a win happens we apply debts/wins here
+function processWin(winner) {
     wins[winner] = (wins[winner] || 0) + 1;
     rafflesClosed++;
 
-    history.push(`${winner} venceu a rifa com 10 pontos!`);
+    history[currentPartida].push(`${winner} ganhou a rifa com 10 pontos!`);
 
     players.forEach(other => {
         if (other === winner) return;
-        let deveParaWinner = debts[other][winner] || 0;
-        let winnerDeveParaOther = debts[winner][other] || 0;
+
+        let deveParaWinner = (debts[other] && debts[other][winner]) || 0;
+        let winnerDeveParaOther = (debts[winner] && debts[winner][other]) || 0;
         let valor = raffleValue;
 
-        if (deveParaWinner > 0) debts[other][winner] += valor;
-        else if (winnerDeveParaOther > 0) debts[winner][other] = Math.max(0, debts[winner][other] - valor);
-        else debts[other][winner] = valor;
+        if (deveParaWinner > 0) {
+            // other already devia pro winner -> soma
+            debts[other][winner] = (debts[other][winner] || 0) + valor;
+        }
+        else if (winnerDeveParaOther > 0) {
+            // winner devia para other -> reduz
+            debts[winner][other] = Math.max(0, (debts[winner][other] || 0) - valor);
+        }
+        else {
+            // novo débito
+            debts[other][winner] = (debts[other][winner] || 0) + valor;
+        }
     });
 
-    // Nova rodada pós vitória
+    // reset round-specific flags and points for next round
     sequenceUsed = false;
     fourUsed = false;
     players.forEach(p => points[p] = 0);
-    history.push('--- nova rodada iniciada ---');
 
-    renderGame(); renderDebts(); renderStats(); renderHistory();
-    saveRoomState();();
+    renderGame(); renderDebts(); renderStats(); renderHistory(); saveRoomState();
+}
+
+// advance partida counter after a round (wrap 1..10)
+function advancePartidaAfterRound(){
+  currentPartida++;
+  if(currentPartida > 10) currentPartida = 1;
+  // ensure history bucket exists
+  if(!history[currentPartida]) history[currentPartida] = [];
+  history[currentPartida].push('--- nova partida iniciada ---');
 }
 
 /* ---- STORAGE / FIRESTORE ---- */
+
 async function loadRooms() {
   try{
     let sel = document.getElementById("roomList"); sel.innerHTML = "";
     let snap = await db.collection("rooms").get();
     if (snap.empty) { sel.innerHTML = "<option>Nenhuma sala criada</option>"; return; }
     snap.forEach(doc => sel.innerHTML += `<option value="${doc.id}">${doc.id}</option>`);
-  }catch(e){ console.error(e); alert('Erro ao carregar salas: '+e.message); }
+  }catch(e){
+    console.error(e);
+    alertSync('Erro ao carregar salas: ' + (e && e.message ? e.message : e));
+  }
 }
 
 async function createRoom(){
-  let name = (document.getElementById('newRoomName').value || '').trim();
-  let pass = (document.getElementById('newRoomPass').value || '').trim();
-  if(!name||!pass) return alert('Preencha nome e senha!');
-  await db.collection('rooms').doc(name).set({ pass, state: null });
-  alert('Sala criada!'); loadRooms();
+  try{
+    let name = (document.getElementById('newRoomName').value || '').trim();
+    let pass = (document.getElementById('newRoomPass').value || '').trim();
+    if(!name||!pass) return alertSync('Preencha nome e senha!');
+    await db.collection('rooms').doc(name).set({ pass, state: null });
+    alertSync('Sala criada!');
+    loadRooms();
+  }catch(e){
+    console.error(e); alertSync('Erro ao criar sala: '+ (e && e.message? e.message : e));
+  }
 }
 
 let unsubscribe = null;
 async function enterRoom(){
-  let name = (document.getElementById('roomList').value || '').trim();
-  let pass = (document.getElementById('enterRoomPass').value || '').trim();
-  if(!name) return alert('Selecione uma sala');
-  let ref = db.collection('rooms').doc(name);
-  let docSnap = await ref.get(); if(!docSnap.exists) return alert('Sala não encontrada');
-  if(docSnap.data().pass !== pass) return alert('Senha incorreta');
+  try{
+    let name = (document.getElementById('roomList').value || '').trim();
+    let pass = (document.getElementById('enterRoomPass').value || '').trim();
+    if(!name) return alertSync('Selecione uma sala');
+    let ref = db.collection('rooms').doc(name);
+    let docSnap = await ref.get();
+    if(!docSnap.exists) return alertSync('Sala não encontrada');
+    if(docSnap.data().pass !== pass) return alertSync('Senha incorreta');
 
-  currentRoom = name;
-  if(unsubscribe) unsubscribe();
-  unsubscribe = ref.onSnapshot(doc => {
-    let data = doc.data();
-    if(!data.state) return;
-    loadRoomStateLive(data.state);
-  });
+    currentRoom = name;
+    if(unsubscribe) unsubscribe();
+    unsubscribe = ref.onSnapshot(doc => {
+      let data = doc.data();
+      if(!data || !data.state) return;
+      loadRoomStateLive(data.state);
+    });
 
-  // if there's saved state, load it once
-  if(docSnap.data().state) loadRoomStateLive(docSnap.data().state);
+    // if there's saved state, load it once
+    if(docSnap.data().state) loadRoomStateLive(docSnap.data().state);
 
-  roomScreen.style.display = 'none';
-  mainApp.style.display = 'block';
+    roomScreen.style.display = 'none';
+    mainApp.style.display = 'block';
+  }catch(e){
+    console.error(e); alertSync('Erro ao entrar na sala: ' + (e && e.message ? e.message : e));
+  }
 }
 
 function saveRoomState(){
   if(!currentRoom) return;
-  let data = { sequenceUsed, fourUsed, history, players, points, debts, wins, raffleValue, rafflesClosed };
-  db.collection('rooms').doc(currentRoom).update({ state: data }).catch(e=>console.error('save error',e));
+  let data = {
+    sequenceUsed,
+    fourUsed,
+    history,
+    currentPartida,
+    players,
+    points,
+    debts,
+    wins,
+    raffleValue,
+    rafflesClosed
+  };
+  // use update but fallback to set if doc doesn't exist
+  const ref = db.collection('rooms').doc(currentRoom);
+  ref.update({ state: data }).catch(err=>{
+    // se update falhar (por exemplo estado em null), tenta set
+    ref.set({ pass: (null), state: data }, { merge: true }).catch(e=>console.error('save error',e));
+  });
 }
 
 function loadRoomStateLive(state){
   players = state.players || players;
-  sequenceUsed = state.sequenceUsed || false;
-  fourUsed = state.fourUsed || false;
-  history = state.history || [];
+  sequenceUsed = !!state.sequenceUsed;
+  fourUsed = !!state.fourUsed;
+  history = state.history || {};
+  currentPartida = state.currentPartida || 1;
   points = state.points || {};
   debts = state.debts || {};
   wins = state.wins || {};
   raffleValue = state.raffleValue || raffleValue;
   rafflesClosed = state.rafflesClosed || rafflesClosed;
+
+  // ensure history buckets
+  for(let i=1;i<=10;i++) if(!history[i]) history[i] = [];
 
   document.getElementById("raffleValueDisplay").innerText = raffleValue;
   renderGame(); renderDebts(); renderStats(); renderHistory();
@@ -507,73 +593,74 @@ function loadRoomStateLive(state){
 }
 
 async function deleteRoom(){
-  let name = (document.getElementById('roomList').value || '').trim();
-  if(!name) return alert('Nenhuma sala selecionada.');
-  let pass = prompt('Digite a senha da sala para excluir:'); if(!pass) return alert('Senha não informada!');
-  let ref = db.collection('rooms').doc(name); let snap = await ref.get(); if(!snap.exists) return alert('Sala não encontrada');
-  if(snap.data().pass !== pass) return alert('Senha incorreta!');
-  if(!confirm(`Excluir a sala "${name}"?`)) return;
-  await ref.delete(); alert('Sala excluída!'); loadRooms();
+  try{
+    let name = (document.getElementById('roomList').value || '').trim();
+    if(!name) return alertSync('Nenhuma sala selecionada.');
+    const pass = await promptSync('Digite a senha da sala para excluir:');
+    if(!pass) return alertSync('Senha não informada!');
+    let ref = db.collection('rooms').doc(name);
+    let snap = await ref.get();
+    if(!snap.exists) return alertSync('Sala não encontrada');
+    if(snap.data().pass !== pass) return alertSync('Senha incorreta!');
+    if(!confirmSync(`Excluir a sala "${name}"?`)) return;
+    await ref.delete();
+    alertSync('Sala excluída!');
+    loadRooms();
+  }catch(e){
+    console.error(e); alertSync('Erro ao excluir sala: '+(e && e.message ? e.message : e));
+  }
 }
 
-/* utils */
+/* utils: modal-based sync-like alert/confirm/prompt so Firefox shows modal and we can hide native dialogs */
+function showModal(title, message, options = {}) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('modalOverlay');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMessage = document.getElementById('modalMessage');
+    const modalInputContainer = document.getElementById('modalInputContainer');
+    const modalInput = document.getElementById('modalInput');
+    const btnOk = document.getElementById('modalOk');
+    const btnCancel = document.getElementById('modalCancel');
+
+    modalTitle.textContent = title;
+    modalMessage.textContent = message;
+
+    if(options.input){
+      modalInputContainer.style.display = 'block';
+      modalInput.type = options.password ? 'password' : 'text';
+      modalInput.value = options.default || '';
+      setTimeout(()=>modalInput.focus(),50);
+    } else {
+      modalInputContainer.style.display = 'none';
+    }
+
+    overlay.style.display = 'flex';
+
+    function cleanup(){
+      btnOk.onclick = null;
+      btnCancel.onclick = null;
+      overlay.style.display = 'none';
+    }
+
+    btnOk.onclick = () => {
+      const val = options.input ? modalInput.value : true;
+      cleanup();
+      resolve(val);
+    };
+    btnCancel.onclick = () => {
+      cleanup();
+      resolve(false);
+    };
+  });
+}
+
+// wrappers that feel synchronous where needed
+function alertSync(msg){ return showModal('Aviso', msg); }
+function confirmSync(msg){ return showModal('Confirmar', msg); }
+function promptSync(msg){ return showModal('Confirmação', msg, { input: true, password: true }); }
+
 function flashWinner(name){ const bg = document.querySelector('.bg-glow'); if(!bg) return; bg.animate([{filter:'blur(80px) brightness(1)', opacity:0.9},{filter:'blur(40px) brightness(1.6)', opacity:1},{filter:'blur(80px) brightness(1)', opacity:0.9}],{duration:700,easing:'ease-out'}); }
 
-</script>
-
-
-
-<!-- MODAL SISTEMA -->
-<div id="modalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center;">
-  <div id="modalBox" style="background:#0f1720; padding:24px; border-radius:14px; width:90%; max-width:360px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 0 18px rgba(0,0,0,0.6); text-align:center;">
-      <h3 id="modalTitle" style="margin-bottom:12px; color:#00f5ff; font-family:Orbitron"></h3>
-      <p id="modalMessage" style="margin-bottom:22px; color:#dfefff;"></p>
-      <div id="modalInputContainer" style="display:none; margin-bottom:18px;">
-         <input id="modalInput" type="password" placeholder="Digite aqui..." style="width:100%; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.04); color:white;">
-      </div>
-      <button id="modalCancel" style="padding:10px 18px; margin-right:10px; border:none; border-radius:8px; background:#444; color:white; cursor:pointer;">Cancelar</button>
-      <button id="modalOk" style="padding:10px 18px; border:none; border-radius:8px; background:linear-gradient(90deg,#00f5ff,#ff3ecf); color:#021018; cursor:pointer; font-weight:700;">OK</button>
-  </div>
-</div>
-
-<script>
-function showModal(title, message, options={}){
-    return new Promise(resolve => {
-        const overlay = document.getElementById('modalOverlay');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalMessage = document.getElementById('modalMessage');
-        const modalInputContainer = document.getElementById('modalInputContainer');
-        const modalInput = document.getElementById('modalInput');
-        const btnOk = document.getElementById('modalOk');
-        const btnCancel = document.getElementById('modalCancel');
-
-        modalTitle.textContent = title;
-        modalMessage.textContent = message;
-
-        if(options.input){ modalInputContainer.style.display = 'block'; modalInput.value = ''; }
-        else{ modalInputContainer.style.display = 'none'; }
-
-        overlay.style.display = 'flex';
-
-        btnOk.onclick = () =>{
-            overlay.style.display = 'none';
-            resolve(options.input ? modalInput.value : true);
-        }
-        btnCancel.onclick = () =>{
-            overlay.style.display = 'none';
-            resolve(false);
-        }
-    });
-}
-
-// substituir alert
-function alert(msg){ return showModal('Aviso', msg); }
-
-// substituir confirm
-function confirm(msg){ return new Promise(async res=>{ let r = await showModal('Confirmar', msg); res(r); }); }
-
-// substituir prompt
-function prompt(msg){ return new Promise(async res=>{ let r = await showModal('Confirmação', msg, {input:true}); res(r); }); }
 </script>
 
 </body>
