@@ -468,18 +468,32 @@ async function handleAction(player, action){
     ensureHistory(currentPartida);
     history[currentPartida].push(`${player} bateu com 9`);
     points[player] = (points[player] || 0) + 1;
+    // verifica vitória ANTES de criar nova partida
+    if(points[player] >= 10 && !hasWonThisRound[player]){
+      hasWonThisRound[player] = true;
+      history[currentPartida].push(`${player} atingiu 10+ pontos`);
+      await processWin(player);
+      return;
+    }
     await endRound(player, 'batida');
   }
   else if(action === 'bat10'){
     ensureHistory(currentPartida);
     history[currentPartida].push(`${player} bateu com 10`);
     points[player] = (points[player] || 0) + 2;
+    // verifica vitória ANTES de criar nova partida
+    if(points[player] >= 10 && !hasWonThisRound[player]){
+      hasWonThisRound[player] = true;
+      history[currentPartida].push(`${player} atingiu 10+ pontos`);
+      await processWin(player);
+      return;
+    }
     await endRound(player, 'batida');
   }
 
-  // verifica vitória (>=10 pontos) apenas 1x por rodada
+  // verificação normal para seq/four
   if(points[player] >= 10 && !hasWonThisRound[player]){
-    hasWonThisRound[player] = true; // marca que venceu esta rodada
+    hasWonThisRound[player] = true;
     ensureHistory(currentPartida);
     history[currentPartida].push(`${player} atingiu 10+ pontos`);
     await processWin(player);
