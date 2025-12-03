@@ -255,7 +255,7 @@
             <div style="font-size:44px; color:var(--neon2); transform:translateY(-6px)">🂡</div>
           </div>
 
-          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ningue!</div>
+          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ninguem!</div>
 
           <!-- animated small cards on splash (in front of text but still part of panel) -->
           <div style="margin-top:18px; display:flex; gap:10px; justify-content:center; align-items:center;">
@@ -463,23 +463,6 @@ function renderGame() {
     });
 
     document.getElementById("gameArea").innerHTML = html;
-}
-
-function loadRoomStateLive(state) {
-  players = state.players;
-  points = state.points;
-  debts = state.debts;
-  wins = state.wins;
-  raffleValue = state.raffleValue;
-  rafflesClosed = state.rafflesClosed;
-
-  renderGame();
-  renderDebts();
-  renderStats();
-
-  gameArea.style.display = "block";
-  debtsArea.style.display = "block";
-  statsArea.style.display = "block";
 }
 
 // REMOVE PONTOS de um jogador
