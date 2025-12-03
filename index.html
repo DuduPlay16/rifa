@@ -19,6 +19,8 @@
   const db = firebase.firestore();
 </script>
 
+let hasWonThisRound = {}; // nova flag para controlar vitórias por rodada
+
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Rifa dos músicos</title>
@@ -213,6 +215,7 @@ let raffleValue = 10;
 let rafflesClosed = 0;
 let currentRoom = null;
 let unsubscribe = null;
+let hasWonThisRound = {}; // controla se o jogador já venceu nesta rodada
 
 /* DOM refs */
 const splash = document.getElementById('splashScreen');
@@ -361,35 +364,36 @@ function renderHistory(){
    JOGO: iniciar / reset
    ------------------------ */
 async function startGame(){
-  // reset flags e estrutura
-  sequenceUsed = false;
-  fourUsed = false;
-  history = {};
-  currentPartida = 1;
-  history[currentPartida] = [];
-
-  players = [];
-  points = {};
-  debts = {};
-  wins = {};
-  rafflesClosed = 0;
-
-  raffleValue = Number(document.getElementById("raffleValue").value) || 10;
-  document.getElementById("raffleValueDisplay").innerText = raffleValue;
-
-  [p1.value, p2.value, p3.value, p4.value].forEach(n => {
-    if (n && n.trim() !== "") players.push(n.trim());
-  });
+  // pega jogadores
+  players = [p1.value, p2.value, p3.value, p4.value].filter(n => n && n.trim() !== "").map(n => n.trim());
 
   if (players.length < 2) {
     await alertModal('Coloque pelo menos 2 jogadores.');
     return;
   }
 
+  // reset flags e estruturas
+  sequenceUsed = false;
+  fourUsed = false;
+  history = {};
+  currentPartida = 1;
+  history[currentPartida] = [];
+
+  points = {};
+  debts = {};
+  wins = {};
+  rafflesClosed = 0;
+  hasWonThisRound = {};
+
+  raffleValue = Number(document.getElementById("raffleValue").value) || 10;
+  document.getElementById("raffleValueDisplay").innerText = raffleValue;
+
+  // inicializa pontos, dívidas, vitórias e flags
   players.forEach(a => {
     points[a] = 0;
     wins[a] = 0;
     debts[a] = {};
+    hasWonThisRound[a] = false;
     players.forEach(b => debts[a][b] = 0);
   });
 
@@ -464,27 +468,18 @@ async function handleAction(player, action){
     ensureHistory(currentPartida);
     history[currentPartida].push(`${player} bateu com 9`);
     points[player] = (points[player] || 0) + 1;
-    // encerra a partida (cria próxima no histórico), mas NÃO zera pontos
     await endRound(player, 'batida');
-    // após endRound, verificamos vitória por pontos acumulados
-    if(points[player] >= 10){
-      await processWin(player);
-    }
-    return;
   }
   else if(action === 'bat10'){
     ensureHistory(currentPartida);
     history[currentPartida].push(`${player} bateu com 10`);
     points[player] = (points[player] || 0) + 2;
     await endRound(player, 'batida');
-    if(points[player] >= 10){
-      await processWin(player);
-    }
-    return;
   }
 
-  // verificação de vitória por acumular 10 pontos
-  if(points[player] >= 10){
+  // verifica vitória (>=10 pontos) apenas 1x por rodada
+  if(points[player] >= 10 && !hasWonThisRound[player]){
+    hasWonThisRound[player] = true; // marca que venceu esta rodada
     ensureHistory(currentPartida);
     history[currentPartida].push(`${player} atingiu 10+ pontos`);
     await processWin(player);
