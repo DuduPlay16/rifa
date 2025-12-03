@@ -521,5 +521,60 @@ function flashWinner(name){ const bg = document.querySelector('.bg-glow'); if(!b
 
 </script>
 
+
+
+<!-- MODAL SISTEMA -->
+<div id="modalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center;">
+  <div id="modalBox" style="background:#0f1720; padding:24px; border-radius:14px; width:90%; max-width:360px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 0 18px rgba(0,0,0,0.6); text-align:center;">
+      <h3 id="modalTitle" style="margin-bottom:12px; color:#00f5ff; font-family:Orbitron"></h3>
+      <p id="modalMessage" style="margin-bottom:22px; color:#dfefff;"></p>
+      <div id="modalInputContainer" style="display:none; margin-bottom:18px;">
+         <input id="modalInput" type="password" placeholder="Digite aqui..." style="width:100%; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.04); color:white;">
+      </div>
+      <button id="modalCancel" style="padding:10px 18px; margin-right:10px; border:none; border-radius:8px; background:#444; color:white; cursor:pointer;">Cancelar</button>
+      <button id="modalOk" style="padding:10px 18px; border:none; border-radius:8px; background:linear-gradient(90deg,#00f5ff,#ff3ecf); color:#021018; cursor:pointer; font-weight:700;">OK</button>
+  </div>
+</div>
+
+<script>
+function showModal(title, message, options={}){
+    return new Promise(resolve => {
+        const overlay = document.getElementById('modalOverlay');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalInputContainer = document.getElementById('modalInputContainer');
+        const modalInput = document.getElementById('modalInput');
+        const btnOk = document.getElementById('modalOk');
+        const btnCancel = document.getElementById('modalCancel');
+
+        modalTitle.textContent = title;
+        modalMessage.textContent = message;
+
+        if(options.input){ modalInputContainer.style.display = 'block'; modalInput.value = ''; }
+        else{ modalInputContainer.style.display = 'none'; }
+
+        overlay.style.display = 'flex';
+
+        btnOk.onclick = () =>{
+            overlay.style.display = 'none';
+            resolve(options.input ? modalInput.value : true);
+        }
+        btnCancel.onclick = () =>{
+            overlay.style.display = 'none';
+            resolve(false);
+        }
+    });
+}
+
+// substituir alert
+function alert(msg){ return showModal('Aviso', msg); }
+
+// substituir confirm
+function confirm(msg){ return new Promise(async res=>{ let r = await showModal('Confirmar', msg); res(r); }); }
+
+// substituir prompt
+function prompt(msg){ return new Promise(async res=>{ let r = await showModal('Confirmação', msg, {input:true}); res(r); }); }
+</script>
+
 </body>
 </html>
