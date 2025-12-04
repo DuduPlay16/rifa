@@ -442,15 +442,7 @@ function removerPontos(player, value) {
 async function handleAction(player, action){
   if(!players.includes(player)) return;
 
-  // VERIFICAÇÃO IMEDIATA: se já atingiu 10 antes de qualquer ação
-  if(points[player] >= 10 && !hasWonThisRound[player]){
-    hasWonThisRound[player] = true;
-    ensureHistory(currentPartida);
-    history[currentPartida].push(`${player} atingiu 10+ pontos`);
-    await processWin(player);
-    return;
-  }
-
+  // LÓGICA DE SEQ/Four primeiro
   if(action === 'seq'){
     if(sequenceUsed) {
       await alertModal('Sequência já foi feita nesta partida!');
@@ -482,7 +474,7 @@ async function handleAction(player, action){
     points[player] = (points[player] || 0) + 2;
   }
 
-  // APÓS QUALQUER AÇÃO: verificar vitória
+  // VERIFICAÇÃO DE VITÓRIA APÓS AÇÃO
   if(points[player] >= 10 && !hasWonThisRound[player]){
     hasWonThisRound[player] = true;
     ensureHistory(currentPartida);
@@ -491,7 +483,7 @@ async function handleAction(player, action){
     return;
   }
 
-  // encerra rodada por batida normal
+  // encerra rodada se batida
   if(action === 'bat9' || action === 'bat10') await endRound(player, 'batida');
 
   renderGame(); renderDebts(); renderStats(); renderHistory();
