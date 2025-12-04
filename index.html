@@ -97,7 +97,7 @@
             <div class="title">Rifa dos músicos</div>
             <div style="font-size:44px; color:var(--neon2); transform:translateY(-6px)">🂡</div>
           </div>
-          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ninguem!</div>
+          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ningue!</div>
           <button class="enterBtn" id="enterBtn">Entrar</button>
           <p style="margin-top:12px; font-size:13px; color:#dfefff; opacity:0.8">Feito por <b style="color:var(--neon2)">DuduPlay</b></p>
         </div>
@@ -543,7 +543,7 @@ async function processWin(winner){
   });
 
   // reset pontos do vencedor
-  points[winner] = 0;
+  players.forEach(p => points[p] = 0);
 
   // RESETAR FLAG PARA NOVA PARTIDA
   players.forEach(p => hasWonThisRound[p] = false);
