@@ -97,7 +97,7 @@
             <div class="title">Rifa dos músicos</div>
             <div style="font-size:44px; color:var(--neon2); transform:translateY(-6px)">🂡</div>
           </div>
-          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ningue!</div>
+          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ninguem!</div>
           <button class="enterBtn" id="enterBtn">Entrar</button>
           <p style="margin-top:12px; font-size:13px; color:#dfefff; opacity:0.8">Feito por <b style="color:var(--neon2)">DuduPlay</b></p>
         </div>
@@ -528,7 +528,7 @@ async function processWin(winner){
   ensureHistory(currentPartida);
   history[currentPartida].push(`${winner} venceu por acumular 10 ou mais pontos!`);
 
-  // aplicar dívidas entre players
+  // aplicar dívidas
   players.forEach(other => {
     if(other === winner) return;
 
@@ -541,26 +541,27 @@ async function processWin(winner){
     const winnerDeveParaOther = debts[winner][other] || 0;
 
     if(winnerDeveParaOther > 0){
-      // primeiro compensar dívidas do vencedor
       const compensa = Math.min(valor, winnerDeveParaOther);
       debts[winner][other] -= compensa;
       const restante = valor - compensa;
       if(restante > 0) debts[other][winner] = (debts[other][winner] || 0) + restante;
     } else {
-      // cria dívida normal
       debts[other][winner] = (debts[other][winner] || 0) + valor;
     }
   });
 
-  // reset pontos do vencedor apenas
+  // reset pontos do vencedor
   points[winner] = 0;
+
+  // RESETAR FLAG PARA NOVA PARTIDA
+  players.forEach(p => hasWonThisRound[p] = false);
 
   // iniciar nova partida no histórico
   currentPartida++;
   history[currentPartida] = [];
   history[currentPartida].push('--- nova partida ---');
 
-  // reset flags
+  // reset flags seq/four
   sequenceUsed = false;
   fourUsed = false;
 
