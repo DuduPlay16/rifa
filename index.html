@@ -19,8 +19,6 @@
   const db = firebase.firestore();
 </script>
 
-let hasWonThisRound = {}; // nova flag para controlar vitórias por rodada
-
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Rifa dos músicos</title>
@@ -99,7 +97,7 @@ let hasWonThisRound = {}; // nova flag para controlar vitórias por rodada
             <div class="title">Rifa dos músicos</div>
             <div style="font-size:44px; color:var(--neon2); transform:translateY(-6px)">🂡</div>
           </div>
-          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ninguem!</div>
+          <div class="subtitle">Sistema de rifa feito por DuduPlay, agora ninguem rouba ningue!</div>
           <button class="enterBtn" id="enterBtn">Entrar</button>
           <p style="margin-top:12px; font-size:13px; color:#dfefff; opacity:0.8">Feito por <b style="color:var(--neon2)">DuduPlay</b></p>
         </div>
@@ -444,6 +442,15 @@ function removerPontos(player, value) {
 async function handleAction(player, action){
   if(!players.includes(player)) return;
 
+  // VERIFICAÇÃO IMEDIATA: se já atingiu 10 antes de qualquer ação
+  if(points[player] >= 10 && !hasWonThisRound[player]){
+    hasWonThisRound[player] = true;
+    ensureHistory(currentPartida);
+    history[currentPartida].push(`${player} atingiu 10+ pontos`);
+    await processWin(player);
+    return;
+  }
+
   if(action === 'seq'){
     if(sequenceUsed) {
       await alertModal('Sequência já foi feita nesta partida!');
@@ -468,30 +475,14 @@ async function handleAction(player, action){
     ensureHistory(currentPartida);
     history[currentPartida].push(`${player} bateu com 9`);
     points[player] = (points[player] || 0) + 1;
-    // verifica vitória ANTES de criar nova partida
-    if(points[player] >= 10 && !hasWonThisRound[player]){
-      hasWonThisRound[player] = true;
-      history[currentPartida].push(`${player} atingiu 10+ pontos`);
-      await processWin(player);
-      return;
-    }
-    await endRound(player, 'batida');
   }
   else if(action === 'bat10'){
     ensureHistory(currentPartida);
     history[currentPartida].push(`${player} bateu com 10`);
     points[player] = (points[player] || 0) + 2;
-    // verifica vitória ANTES de criar nova partida
-    if(points[player] >= 10 && !hasWonThisRound[player]){
-      hasWonThisRound[player] = true;
-      history[currentPartida].push(`${player} atingiu 10+ pontos`);
-      await processWin(player);
-      return;
-    }
-    await endRound(player, 'batida');
   }
 
-  // verificação normal para seq/four
+  // APÓS QUALQUER AÇÃO: verificar vitória
   if(points[player] >= 10 && !hasWonThisRound[player]){
     hasWonThisRound[player] = true;
     ensureHistory(currentPartida);
@@ -499,6 +490,9 @@ async function handleAction(player, action){
     await processWin(player);
     return;
   }
+
+  // encerra rodada por batida normal
+  if(action === 'bat9' || action === 'bat10') await endRound(player, 'batida');
 
   renderGame(); renderDebts(); renderStats(); renderHistory();
   saveRoomState();
